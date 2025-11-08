@@ -3,7 +3,7 @@ import { debugLog } from '../config/constants.js';
 import { readFileContent, writeFileContent } from '../utils/file-utils.js';
 import { cleanCodeResponse } from '../utils/code-cleaner.js';
 import { routeAPICall } from '../api/router/router.js';
-import { formatEditResponse, formatCreateResponse } from '../formatting/response-formatter.js';
+import { formatEditResponse } from '../formatting/response-formatter.js';
 
 // Tool handler for the write tool
 export async function handleWriteTool(args) {
