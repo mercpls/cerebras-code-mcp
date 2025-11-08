@@ -1,16 +1,15 @@
-# Cerebras Code MCP Server v1.3.3
+# Cerebras Code MCP Server v1.4.0
 
-This MCP server is designed for **planning with Claude Code, Cline, or Cursor** and **making changes with Cerebras** to maximize speed and intelligence while avoiding API limits. Use your preferred AI for planning and strategy, then leverage Cerebras for high-quality code generation.
+This MCP server is designed for **simple, diff-based code editing** with Cerebras. Use it for quick, non-complex edits like changing colors, variable names, or other small modifications.
 
-It will use the Qwen 3 Coder model, and can be embedded in IDEs like Claude Code and Cline, with beta support for Cursor.
+It uses the Qwen 3 Coder model and can be embedded in IDEs like Claude Code and Cline, with beta support for Cursor.
 
-## ✨ New in v1.3.3
+## ✨ New in v1.4.0
 
-- **Project Restructure**: Organized project into smaller, more manageable components for DX purposes
-- **Stronger Instruction**: Improved `write` usage count among models
-- **Claude Code - Enhanced Visual Diffs**: Displays changes/edits in a pretty format
-- **VS Code Support**: Added install/remove support for VS Code
-- **Update Config Wizard for Messy Configs**: Added a removal wizard that helps uninstall
+- **Simplified Editing**: Streamlined to focus on simple, diff-based edits only
+- **No More Strict Enforcement**: Less aggressive about forcing tool usage - use it when it makes sense
+- **Code Quality via agents.md**: The main LLM provides agents.md content with each request to ensure code quality
+- **Cleaner Output**: Removed complex IDE-specific formatting in favor of simple diffs
 
 ## 1. Install the NPM Package
 ```bash
@@ -44,13 +43,26 @@ Use the removal wizard to clean up configurations for any IDE or perform a compl
 
 ## 5. Usage
 
-The MCP tool will appear as `write` in your tool list. It supports:
+The MCP tool appears as `write` in your tool list. It's designed for simple, focused edits:
 
-- **Natural language prompts**: Just describe what you want in plain English
-- **Context files**: Include multiple files as context for better code understanding
-- **Visual diffs**: See changes with Git-style diffs
+**Use cases:**
+- Changing a color value in a config file
+- Updating a variable name
+- Modifying a simple string or number
+- Other small, non-complex changes
+
+**How it works:**
+- The main LLM provides a small prompt describing the change
+- A code example showing what the change should look like
+- The agents.md content for code quality guidelines
+- The tool applies the diff-based change to the existing file
+
+**What it's NOT for:**
+- Creating new files (only edits existing files)
+- Complex code generation
+- Large-scale refactoring
 
 Example usage:
 ```
-Create a REST API with Express.js that handles user authentication
+Use the cerebras-mcp write tool to change the primary color from #0066cc to #ff6600 in src/config.js
 ```

@@ -3,7 +3,7 @@ import { debugLog } from '../config/constants.js';
 import { readFileContent, writeFileContent } from '../utils/file-utils.js';
 import { cleanCodeResponse } from '../utils/code-cleaner.js';
 import { routeAPICall } from '../api/router/router.js';
-import { formatEditResponse, formatCreateResponse } from '../formatting/response-formatter.js';
+import { formatEditResponse } from '../formatting/response-formatter.js';
 
 // Tool handler for the write tool
 export async function handleWriteTool(args) {
@@ -20,7 +20,8 @@ export async function handleWriteTool(args) {
     const { 
       file_path,
       prompt, 
-      context_files = []
+      code_example,
+      agents_md
     } = args;
     
     if (!prompt) {
@@ -30,19 +31,28 @@ export async function handleWriteTool(args) {
     if (!file_path) {
       throw new Error("file_path is required for write tool");
     }
+
+    if (!code_example) {
+      throw new Error("code_example is required for write tool");
+    }
+
+    if (!agents_md) {
+      throw new Error("agents_md is required for write tool");
+    }
     
-    // Check if file exists to determine operation type
+    // Check if file exists - this tool only edits existing files
     const existingContent = await readFileContent(file_path);
-    const isEdit = existingContent !== null;
+    if (existingContent === null) {
+      throw new Error(`File ${file_path} does not exist. This tool only edits existing files.`);
+    }
     
     await debugLog('=== FILE OPERATION DEBUG ===');
     await debugLog(`File path: ${file_path}`);
-    await debugLog(`File exists: ${isEdit}`);
-    await debugLog(`Existing content length: ${existingContent ? existingContent.length : 0}`);
+    await debugLog(`Existing content length: ${existingContent.length}`);
     await debugLog('============================');
     
-    // Route API call to appropriate provider to generate/modify code with context files
-    const result = await routeAPICall(prompt, "", file_path, null, context_files);
+    // Route API call to apply the diff-based change with agents.md for quality
+    const result = await routeAPICall(prompt, code_example, file_path, null, agents_md);
     
     // Clean the AI response to remove markdown formatting
     const cleanResult = cleanCodeResponse(result);
@@ -50,20 +60,15 @@ export async function handleWriteTool(args) {
     // Write the cleaned result to the file
     await writeFileContent(file_path, cleanResult);
 
-    // Format the response based on operation type
+    // Format the response
     let responseContent = [];
     const fileName = path.basename(file_path);
 
-    if (isEdit && existingContent) {
-      // Clean the existing content too for consistent comparison
-      const cleanExistingContent = cleanCodeResponse(existingContent);
-      const editResponse = formatEditResponse(fileName, cleanExistingContent, cleanResult, file_path);
-      if (editResponse) {
-        responseContent.push(editResponse);
-      }
-    } else if (!isEdit) {
-      const createResponse = formatCreateResponse(fileName, cleanResult, file_path);
-      responseContent.push(createResponse);
+    // Clean the existing content too for consistent comparison
+    const cleanExistingContent = cleanCodeResponse(existingContent);
+    const editResponse = formatEditResponse(fileName, cleanExistingContent, cleanResult, file_path);
+    if (editResponse) {
+      responseContent.push(editResponse);
     }
     
     const response = {
@@ -73,7 +78,7 @@ export async function handleWriteTool(args) {
     // Log the full response for debugging
     await debugLog('=== MCP RESPONSE DEBUG ===');
     await debugLog(`IDE Source: ${ideSource}`);
-    await debugLog('Response type: Standard text diff');
+    await debugLog('Response type: Diff-based edit');
     await debugLog(`Number of content items: ${responseContent.length}`);
     await debugLog(`Response structure: ${JSON.stringify(response, null, 2)}`);
     await debugLog('=========================');
