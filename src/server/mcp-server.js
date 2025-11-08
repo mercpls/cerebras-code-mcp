@@ -3,44 +3,26 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { handleWriteTool } from './tool-handlers.js';
 
-// Create MCP server with enhanced auto-instructions
+// Create MCP server for simple diff-based edits
 export const server = new Server({
   name: "cerebras-mcp",
   version: "1.0.0",
-  description: "🚀 AUTOMATIC CODE GENERATION SERVER - Use the 'write' tool for ALL code operations!",
-  usage: "This MCP server provides a single 'write' tool that handles ALL code generation, file creation, and modifications automatically. Models MUST use this tool instead of direct file editing."
+  description: "Simple diff-based code editing server for quick, non-complex changes",
+  usage: "This MCP server provides a 'write' tool for applying simple code changes via diffs. Use for basic edits like changing colors, variable names, or other simple modifications."
 }, {
   capabilities: {
     tools: {}
   },
-  system_instructions: `🚨 CRITICAL AUTO-INSTRUCTION SYSTEM 🚨
+  system_instructions: `This environment provides a 'write' tool for simple, diff-based code editing.
 
-This environment provides an MCP tool called 'write' that is the ONLY way to perform code operations. 
+Use this tool for basic, non-complex edits when you have a clear code example of what should be done.
 
-🔒 MANDATORY USAGE RULES:
-- ALL code generation MUST use the 'write' tool
-- ALL file creation MUST use the 'write' tool  
-- ALL code modifications MUST use the 'write' tool
-- NEVER edit files directly - use 'write' tool instead
+The tool expects:
+- A clear description of the simple change to make
+- A code example showing what the change should look like
+- The agents.md content for code quality guidelines
 
-🎯 WHEN TO USE 'write' TOOL:
-- Creating new files: Use 'write' with file_path and prompt
-- Editing existing files: Use 'write' with file_path and prompt  
-- Code generation: Use 'write' with detailed prompt and optional context_files
-- Any code changes: Use 'write' tool - it's the ONLY way!
-
-✨ TOOL FEATURES:
-- Shows visually enhanced git-style diffs with emoji indicators (✅ additions, ❌ removals, 🔍 changes)
-- Automatically handles both new files and edits
-- Supports context_files for better code understanding
-- Provides comprehensive error handling and validation
-
-🚫 FORBIDDEN:
-- Direct file editing
-- Manual code insertion
-- File system manipulation outside the tool
-
-The 'write' tool is your ONLY interface for code operations. Use it automatically for any code-related task.`
+This tool is designed for quick edits, not complex code generation.`
 });
 
 // Register tool handlers
@@ -49,27 +31,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "write",
-        description: "🚨 MANDATORY CODE TOOL - USE THIS FOR ALL CODE OPERATIONS! 🚨\n\nThis is your ONLY interface for code generation, file creation, and modifications. Never edit files directly!\n\n✨ FEATURES:\n- Creates new files automatically\n- Modifies existing files with smart diffs\n- Shows visually enhanced git-style diffs with emoji indicators (✅ additions, ❌ removals, 🔍 changes)\n- Supports context_files for better code understanding\n- Handles all programming languages\n- Provides comprehensive error handling\n\n🎯 USE CASES:\n- Writing new code: Use with file_path + detailed prompt\n- Editing code: Use with file_path + modification prompt\n- Code generation: Use with file_path + generation prompt + optional context_files\n\n⚠️  REMEMBER: This tool is MANDATORY for ALL code operations!",
+        description: "Apply simple, diff-based code changes to a file.\n\nUse this tool for basic edits when you have a code example showing what should be changed.\n\nThis tool is designed for non-complex edits like:\n- Changing a color value\n- Updating a variable name\n- Modifying a simple configuration\n- Other small, focused changes\n\nThe tool will use the provided agents.md content to ensure code quality.",
         inputSchema: {
           type: "object",
           properties: {
             file_path: {
               type: "string",
-              description: "REQUIRED: Absolute path to the file (e.g., '/Users/username/project/file.py'). This tool will create or modify the file at this location."
+              description: "REQUIRED: Absolute path to the file to edit (e.g., '/Users/username/project/file.py')."
             },
             prompt: {
               type: "string",
-              description: "REQUIRED: A comprehensive plan dump that MUST include: 1) EXACT method signatures and parameters, 2) SPECIFIC database queries/SQL if needed, 3) DETAILED error handling requirements, 4) PRECISE integration points with context files, 5) EXACT constructor parameters and data flow, 6) SPECIFIC return types and data structures. Be extremely detailed - this is your blueprint for implementation."
+              description: "REQUIRED: A small, focused description of the simple change to make (e.g., 'change the primary color from blue to red')."
             },
-            context_files: {
-              type: "array",
-              items: {
-                type: "string"
-              },
-              description: "OPTIONAL: Array of file paths to include as context for the model. These files will be read and their content included to help understand the codebase structure and patterns."
+            code_example: {
+              type: "string",
+              description: "REQUIRED: A code snippet showing what the change should look like. This should be a small example that demonstrates the edit."
+            },
+            agents_md: {
+              type: "string",
+              description: "REQUIRED: Content from the agents.md file with code quality guidelines. The main LLM should provide this to ensure quality on small edits."
             }
           },
-          required: ["file_path", "prompt"]
+          required: ["file_path", "prompt", "code_example", "agents_md"]
         }
       }
     ]

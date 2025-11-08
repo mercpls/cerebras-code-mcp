@@ -12,17 +12,17 @@ import { config } from '../../config/constants.js';
  * - Consistent API interface for all providers
  * - Clean separation of concerns
  */
-export async function routeAPICall(prompt, context = "", outputFile = "", language = null, contextFiles = []) {
+export async function routeAPICall(prompt, codeExample = "", outputFile = "", language = null, agentsMd = "") {
   // Determine which provider to use based on configuration and availability
   const provider = determineProvider();
   
   try {
     switch (provider) {
       case 'cerebras':
-        return await callCerebras(prompt, context, outputFile, language, contextFiles);
+        return await callCerebras(prompt, codeExample, outputFile, language, agentsMd);
       
       case 'openrouter':
-        return await callOpenRouter(prompt, context, outputFile, language, contextFiles);
+        return await callOpenRouter(prompt, codeExample, outputFile, language, agentsMd);
       
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -36,10 +36,10 @@ export async function routeAPICall(prompt, context = "", outputFile = "", langua
       try {
         switch (fallbackProvider) {
           case 'cerebras':
-            return await callCerebras(prompt, context, outputFile, language, contextFiles);
+            return await callCerebras(prompt, codeExample, outputFile, language, agentsMd);
           
           case 'openrouter':
-            return await callOpenRouter(prompt, context, outputFile, language, contextFiles);
+            return await callOpenRouter(prompt, codeExample, outputFile, language, agentsMd);
           
           default:
             throw new Error(`Unknown fallback provider: ${fallbackProvider}`);

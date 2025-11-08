@@ -3,8 +3,8 @@ import path from 'path';
 import { config } from '../config/constants.js';
 import { readFileContent, getLanguageFromFile } from '../utils/file-utils.js';
 import { cleanCodeResponse } from '../utils/code-cleaner.js';
-// Call Cerebras Code API - generates only code, no explanations
-export async function callCerebras(prompt, context = "", outputFile = "", language = null, contextFiles = []) {
+// Call Cerebras Code API - applies diff-based changes for simple edits
+export async function callCerebras(prompt, codeExample = "", outputFile = "", language = null, agentsMd = "") {
   try {
     // Check if Cerebras API key is available
     if (!config.cerebrasApiKey) {
@@ -14,50 +14,38 @@ export async function callCerebras(prompt, context = "", outputFile = "", langua
     // Determine language from file extension or explicit parameter
     const detectedLanguage = getLanguageFromFile(outputFile, language);
     
-    let fullPrompt = `Generate ${detectedLanguage} code for: ${prompt}`;
-    
-    // Add context files if provided (excluding the output file itself)
-    if (contextFiles && contextFiles.length > 0) {
-      // Filter out the output file from context files to avoid duplication
-      const filteredContextFiles = contextFiles.filter(file => {
-        const resolvedContext = path.resolve(file);
-        const resolvedOutput = path.resolve(outputFile);
-        return resolvedContext !== resolvedOutput;
-      });
-      
-      if (filteredContextFiles.length > 0) {
-        let contextContent = "Context Files:\n";
-        for (const contextFile of filteredContextFiles) {
-          try {
-            const content = await readFileContent(contextFile);
-            if (content) {
-              const contextLang = getLanguageFromFile(contextFile);
-              contextContent += `\nFile: ${contextFile}\n\`\`\`${contextLang}\n${content}\n\`\`\`\n`;
-            }
-          } catch (error) {
-            console.error(`Warning: Could not read context file ${contextFile}: ${error.message}`);
-          }
-        }
-        fullPrompt = contextContent + "\n" + fullPrompt;
-      }
-    }
-    
-    if (context) {
-      fullPrompt = `Context: ${context}\n\n${fullPrompt}`;
-    }
-    
-    // Read existing file content if it exists (for modification)
+    // Read existing file content (required for edits)
     const existingContent = await readFileContent(outputFile);
-    if (existingContent) {
-      fullPrompt = `Existing file content:\n\`\`\`${detectedLanguage}\n${existingContent}\n\`\`\`\n\n${fullPrompt}`;
+    if (!existingContent) {
+      throw new Error("File does not exist. This tool only edits existing files.");
     }
+    
+    // Build a focused prompt for diff-based editing
+    let fullPrompt = `Apply the following simple change to the existing ${detectedLanguage} code:
+
+Change to make: ${prompt}
+
+Code example showing what it should look like:
+\`\`\`${detectedLanguage}
+${codeExample}
+\`\`\`
+
+Existing file content:
+\`\`\`${detectedLanguage}
+${existingContent}
+\`\`\`
+
+Code quality guidelines to follow:
+${agentsMd}
+
+Apply this change to the existing code and return the complete modified file.`;
     
     const requestData = {
       model: config.cerebrasModel,
       messages: [
         {
           role: "system",
-          content: `You are an expert programmer. Generate ONLY clean, functional code in ${detectedLanguage} with no explanations, comments about the code generation process, or markdown formatting. Include necessary imports and ensure the code is ready to run. When modifying existing files, preserve the structure and style while implementing the requested changes. Output raw code only. Never use markdown code blocks.`
+          content: `You are an expert programmer. Apply the requested simple code change to the existing file. Return ONLY the complete modified code with no explanations, comments about the change, or markdown formatting. The change should be minimal and focused. Output raw code only. Never use markdown code blocks.`
         },
         {
           role: "user",
